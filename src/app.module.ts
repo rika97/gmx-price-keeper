@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import configuration from './config';
 import { Web3Module } from 'nest-web3';
 import { PrometheusModule } from '@willsoto/nestjs-prometheus';
+import { KeeperModule } from './keeper/keeper.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PrometheusModule } from '@willsoto/nestjs-prometheus';
     //   inject: [ConfigService],
     // }),
     Web3Module,
+    KeeperModule,
     PrometheusModule.register(),
   ],
   controllers: [AppController],

@@ -1,4 +1,4 @@
-{
+export default {
   "_format": "hh-sol-artifact-1",
   "contractName": "PositionRouter",
   "sourceName": "contracts/core/PositionRouter.sol",

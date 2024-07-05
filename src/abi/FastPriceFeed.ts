@@ -1,4 +1,4 @@
-{
+export default {
   "_format": "hh-sol-artifact-1",
   "contractName": "FastPriceFeed",
   "sourceName": "contracts/oracle/FastPriceFeed.sol",
@@ -15,6 +15,8 @@
           "name": "_maxPriceUpdateDelay",
           "type": "uint256"
         },
+
+        
         {
           "internalType": "uint256",
           "name": "_minBlockInterval",

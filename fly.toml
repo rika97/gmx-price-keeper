@@ -1,4 +1,4 @@
-app = "gmx-price-feed"
+app = 'gmx-keeper'
 kill_signal = "SIGINT"
 kill_timeout = 5
 processes = []
