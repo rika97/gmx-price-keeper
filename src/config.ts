@@ -12,7 +12,7 @@ export default () => ({
     fastPriceEvents: '0x3A78a7CcC5B32e0e776a9e04A2b6c30BCc2e7125',
     fastPriceFeed: '0x00EB64af98ADE7D92c2E3FFB2c171Fba92A1697D',
     vaultPriceFeed: '0xFa10146c9755dd229aDB60a45fB935F00969F94A',
-    positionRouter: '0xf3f6484E2C01961Eb0Fd4217a5d7D57A791B7771'
+    positionRouter: process.env.POSITION_ROUTER_CONTRACT,
   },
   keys: {
     keeper: process.env.KEEPER_KEY
