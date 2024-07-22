@@ -10,7 +10,7 @@ import { tokens } from './tokens';
 
 const MAX_INCREASE_POSITIONS = 5;
 const MAX_DECREASE_POSITIONS = 5;
-const SYNC_INTERVAL = 20000;
+const SYNC_INTERVAL = 10000;
 
 @Injectable()
 export class KeeperService {
