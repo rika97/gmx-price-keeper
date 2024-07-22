@@ -20,6 +20,7 @@ export class KeeperService {
     private accountAddress: string;
 
     private lastUpdateTime = '';
+    private priceLastUpdateTimestamp = 0;
     private lastPrices = {};
     private lastPriceBits = '';
     private lastSuccessTx = '';
@@ -107,17 +108,22 @@ export class KeeperService {
         } else {
             this.logger.log('setPricesWithBits');
 
-            const tx = await priceFeedContract.methods
-                .setPricesWithBits(priceBits, timestamp)
-                .send({
-                    from: this.accountAddress,
-                    gas: this.gasLimit,
-                    gasPrice: 101000000000,
-                });
+            if (Date.now() - this.priceLastUpdateTimestamp > 120000) {
+                const tx = await priceFeedContract.methods
+                    .setPricesWithBits(priceBits, timestamp)
+                    .send({
+                        from: this.accountAddress,
+                        gas: this.gasLimit,
+                        gasPrice: 101000000000,
+                    });
 
-            this.logger.log('setPricesWithBits', tx.transactionHash);
-            this.lastSuccessTx = tx.transactionHash;
-            this.lastUpdateTime = new Date().toISOString();
+                this.logger.log('setPricesWithBits', tx.transactionHash);
+                this.lastSuccessTx = tx.transactionHash;
+                this.lastUpdateTime = new Date().toISOString();
+                this.priceLastUpdateTimestamp = Date.now();
+            } else {
+                this.logger.log('skipUpdatePrice');
+            }
         }
     }
 
@@ -136,6 +142,7 @@ export class KeeperService {
     info = () => {
         return {
             lastUpdateTime: this.lastUpdateTime,
+            priceLastUpdateTimestamp: this.priceLastUpdateTimestamp,
             lastPrices: this.lastPrices,
             lastPriceBits: this.lastPriceBits,
             lastSuccessTx: this.lastSuccessTx,
