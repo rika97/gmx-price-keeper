@@ -2,12 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Web3Service } from 'nest-web3';
 import priceFeedJson from '../abi/FastPriceFeed';
+import vaultPriceFeedJson from '../abi/VaultPriceFeed';
+import vaultJson from '../abi/Vault';
 import positionRouterJson from '../abi/PositionRouter';
-import * as redstone from 'redstone-api';
 import { fetchPriceBits } from './utils';
+import { tokens } from './tokens';
 
 const MAX_INCREASE_POSITIONS = 5;
 const MAX_DECREASE_POSITIONS = 5;
+const SYNC_INTERVAL = 20000;
 
 @Injectable()
 export class KeeperService {
@@ -15,6 +18,13 @@ export class KeeperService {
     private client = this.web3Service.getClient('hmy');
     private gasLimit = 9721900;
     private accountAddress: string;
+
+    private lastUpdateTime = '';
+    private lastPrices = {};
+    private lastPriceBits = '';
+    private lastSuccessTx = '';
+    private lastErrorTx = '';
+    private lastError = '';
 
     constructor(
         private configService: ConfigService,
@@ -30,14 +40,6 @@ export class KeeperService {
         this.accountAddress = account.address;
 
         this.syncPrice();
-    }
-
-    fetchPrices = async (symbols: string[]) => {
-        const prices = await redstone.query().symbols(symbols).latest().exec({
-            provider: "redstone",
-        });
-
-        return prices;
     }
 
     getPositionQueueLengths = async () => {
@@ -57,18 +59,15 @@ export class KeeperService {
     }
 
     updatePriceBitsAndOptionallyExecute = async () => {
-        const priceBits = await fetchPriceBits([
-            {
-                symbol: 'ONE',
-                precision: 100000000
-            },
-            {
-                symbol: 'BUSD',
-                precision: 100000000
-            }
-        ]);
+        const { prices, priceBits } = await fetchPriceBits(
+            tokens.map(t => ({
+                symbol: t.symbol,
+                precision: t.fastPricePrecision
+            }))
+        );
 
-        console.log("priceBits", priceBits);
+        this.lastPrices = prices;
+        this.lastPriceBits = priceBits;
 
         const priceFeedContract = new this.client.eth.Contract(
             priceFeedJson.abi as any,
@@ -83,6 +82,8 @@ export class KeeperService {
         ) {
             const endIndexForIncreasePositions = positionQueue.increaseKeysLength;
             const endIndexForDecreasePositions = positionQueue.decreaseKeysLength;
+
+            this.logger.log('setPricesWithBitsAndExecute');
 
             const tx = await priceFeedContract.methods
                 .setPricesWithBitsAndExecute(
@@ -99,8 +100,13 @@ export class KeeperService {
                     gasPrice: 101000000000,
                 });
 
-            this.logger.log('setPricesWithBitsAndExecute', tx);
+            this.logger.log('setPricesWithBitsAndExecute', tx.transactionHash);
+
+            this.lastSuccessTx = tx.transactionHash;
+            this.lastUpdateTime = new Date().toISOString();
         } else {
+            this.logger.log('setPricesWithBits');
+
             const tx = await priceFeedContract.methods
                 .setPricesWithBits(priceBits, timestamp)
                 .send({
@@ -109,44 +115,93 @@ export class KeeperService {
                     gasPrice: 101000000000,
                 });
 
-            this.logger.log('setPricesWithBits', tx);
+            this.logger.log('setPricesWithBits', tx.transactionHash);
+            this.lastSuccessTx = tx.transactionHash;
+            this.lastUpdateTime = new Date().toISOString();
         }
     }
 
     syncPrice = async () => {
         try {
-            this.logger.log(await this.client.eth.getChainId());
-
-            const priceFeedContract = new this.client.eth.Contract(
-                priceFeedJson.abi as any,
-                this.configService.get('contracts.fastPriceFeed')
-            );
-
-            this.logger.log(await priceFeedContract.methods.isInitialized().call());
-
-            this.logger.log(
-                await priceFeedContract.methods.getPrice(
-                    "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a", 1, true
-                ).call()
-            );
-
             await this.updatePriceBitsAndOptionallyExecute();
-
-            // const price = await redstone.getPrice("ONE");
-
-            // this.logger.log(price?.value);
-
-
-            // let req = await priceFeedContract.methods.setLatestAnswer(lastPrice).send({
-            //     from: account.address,
-            //     gas: gasLimit,
-            //     gasPrice: 101000000000,
-            // });
-
         } catch (e) {
             this.logger.error('syncPrice', e);
+
+            this.lastError = e.maessage || e;
         }
 
-        setTimeout(() => this.syncPrice(), 5000);
+        setTimeout(() => this.syncPrice(), SYNC_INTERVAL);
+    }
+
+    info = () => {
+        return {
+            lastUpdateTime: this.lastUpdateTime,
+            lastPrices: this.lastPrices,
+            lastPriceBits: this.lastPriceBits,
+            lastSuccessTx: this.lastSuccessTx,
+            lastErrorTx: this.lastErrorTx,
+            lastError: this.lastError,
+            contracts: {
+                positionRouter: this.configService.get('contracts.positionRouter'),
+                vault: this.configService.get('contracts.vault'),
+                fastPriceFeed: this.configService.get('contracts.fastPriceFeed'),
+                vaultPriceFeed: this.configService.get('contracts.vaultPriceFeed'),
+            },
+            SYNC_INTERVAL
+        }
+    }
+
+    tokens = () => tokens;
+
+    test = async () => {
+        const res: any = {};
+
+        res.chainId = await this.client.eth.getChainId();
+
+        const fastPriceFeedContract = new this.client.eth.Contract(
+            priceFeedJson.abi as any,
+            this.configService.get('contracts.fastPriceFeed')
+        );
+
+        const vaultPriceFeedContract = new this.client.eth.Contract(
+            vaultPriceFeedJson.abi as any,
+            this.configService.get('contracts.vaultPriceFeed')
+        );
+
+        const vaultContract = new this.client.eth.Contract(
+            vaultJson.abi as any,
+            this.configService.get('contracts.vault')
+        );
+
+        const tokenAddress = "0xcF664087a5bB0237a0BAd6742852ec6c8d69A27a";
+
+        res['vaultPriceFeedContract.getPrice'] = await vaultPriceFeedContract.methods.getPrice(
+            tokenAddress,
+            true,
+            true,
+            false
+        ).call();
+
+        res['fastPriceFeedContract.getPriceData'] = await fastPriceFeedContract.methods.getPriceData(
+            tokenAddress,
+        ).call();
+
+        res['fastPriceFeedContract.getPrice MAX'] = await fastPriceFeedContract.methods.getPrice(
+            tokenAddress,
+            1,
+            true,
+        ).call();
+
+        res['fastPriceFeedContract.getPrice MIN'] = await fastPriceFeedContract.methods.getPrice(
+            tokenAddress,
+            1,
+            false,
+        ).call();
+
+        res['vaultContract.getMaxPrice'] = await vaultContract.methods.getMaxPrice(tokenAddress).call();
+
+        res['vaultContract.getMinPrice'] = await vaultContract.methods.getMinPrice(tokenAddress).call();
+
+        return res;
     }
 }

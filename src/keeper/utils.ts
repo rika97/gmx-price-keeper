@@ -1,4 +1,5 @@
-const redstone = require("redstone-api");
+import { fetchPrices } from "./price-apis"
+
 const BN = require('bn.js')
 
 export function getPriceBits(prices) {
@@ -25,13 +26,6 @@ export function getPriceBits(prices) {
     return priceBits.toString()
 }
 
-export async function fetchPrices(symbols) {
-    const prices = await redstone.query().symbols(symbols).latest().exec({
-        provider: "redstone",
-    });
-    return prices;
-}
-
 export async function fetchPriceBits(symbolsWithPrecisions) {
     const symbols = symbolsWithPrecisions.map(({ symbol }) => symbol);
     const prices = await fetchPrices(symbols);
@@ -40,11 +34,9 @@ export async function fetchPriceBits(symbolsWithPrecisions) {
         .filter(({ symbol }) => !!prices[symbol])
         .map(({ symbol, precision }) => normalizePrice(prices[symbol], precision));
 
-    return getPriceBits(normalizedPrices);
+    return { prices, priceBits: getPriceBits(normalizedPrices) };
 }
 
 export function normalizePrice(price, precision) {
-    console.log(price.value, precision);
-
-    return Math.round(price.value * precision);
+    return Math.round(price * precision);
 }
