@@ -60,16 +60,6 @@ export class KeeperService {
     }
 
     updatePriceBitsAndOptionallyExecute = async () => {
-        const { prices, priceBits } = await fetchPriceBits(
-            tokens.map(t => ({
-                symbol: t.symbol,
-                precision: t.fastPricePrecision
-            }))
-        );
-
-        this.lastPrices = prices;
-        this.lastPriceBits = priceBits;
-
         const priceFeedContract = new this.client.eth.Contract(
             priceFeedJson.abi as any,
             this.configService.get('contracts.fastPriceFeed')
@@ -85,6 +75,16 @@ export class KeeperService {
             const endIndexForDecreasePositions = positionQueue.decreaseKeysLength;
 
             this.logger.log('setPricesWithBitsAndExecute');
+
+            const { prices, priceBits } = await fetchPriceBits(
+                tokens.map(t => ({
+                    symbol: t.symbol,
+                    precision: t.fastPricePrecision
+                }))
+            );
+    
+            this.lastPrices = prices;
+            this.lastPriceBits = priceBits;
 
             const tx = await priceFeedContract.methods
                 .setPricesWithBitsAndExecute(
@@ -109,6 +109,16 @@ export class KeeperService {
             this.logger.log('setPricesWithBits');
 
             if (Date.now() - this.priceLastUpdateTimestamp > 120000) {
+                const { prices, priceBits } = await fetchPriceBits(
+                    tokens.map(t => ({
+                        symbol: t.symbol,
+                        precision: t.fastPricePrecision
+                    }))
+                );
+        
+                this.lastPrices = prices;
+                this.lastPriceBits = priceBits;
+
                 const tx = await priceFeedContract.methods
                     .setPricesWithBits(priceBits, timestamp)
                     .send({
