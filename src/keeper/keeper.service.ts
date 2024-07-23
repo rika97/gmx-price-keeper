@@ -88,7 +88,7 @@ export class KeeperService {
 
             const tx = await priceFeedContract.methods
                 .setPricesWithBitsAndExecute(
-                    // this.configService.get('contracts.positionRouter'),
+                    this.configService.get('contracts.positionRouter'),
                     priceBits,
                     timestamp,
                     endIndexForIncreasePositions,
