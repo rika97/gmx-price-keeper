@@ -1,4 +1,5 @@
 import * as process from 'process';
+import { contracts } from './contracts.config'
 
 export default () => ({
   hmy: {
@@ -6,10 +7,10 @@ export default () => ({
     url: process.env.HMY_NODE_URL,
   },
   contracts: {
-    fastPriceFeed: process.env.FAST_PRICE_FEED_CONTRACT,
-    positionRouter: process.env.POSITION_ROUTER_CONTRACT,
-    vaultPriceFeed: process.env.VAULT_PRICE_FEED_CONTRACT,
-    vault: process.env.VAULT_CONTRACT,
+    fastPriceFeed: contracts.FastPriceFeed,
+    positionRouter: contracts.PositionRouter,
+    vaultPriceFeed: contracts.VaultPriceFeed,
+    vault: contracts.Vault,
   },
   keys: {
     keeper: process.env.KEEPER_KEY
